@@ -8,6 +8,7 @@ interface SableReadoutProps {
 
 export function SableReadout({ label = "SABLE READ", text }: SableReadoutProps) {
   const [imageFailed, setImageFailed] = useState(false);
+  const imageSrc = `${import.meta.env.BASE_URL}sable/Sable-primary03-filter.png`;
 
   return (
     <div className="sable-readout">
@@ -18,7 +19,7 @@ export function SableReadout({ label = "SABLE READ", text }: SableReadoutProps) 
           <img
             alt=""
             onError={() => setImageFailed(true)}
-            src="/sable/Sable-primary03-filter.png"
+            src={imageSrc}
           />
         )}
       </div>

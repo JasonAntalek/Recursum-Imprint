@@ -11,11 +11,13 @@ interface SablePresenceProps {
   className?: string;
 }
 
+const sableAsset = (path: string) => `${import.meta.env.BASE_URL}${path}`;
+
 const defaultImages: Record<SablePresenceVariant, string> = {
-  threshold: "/sable/Sable-primary01.png",
-  room: "/sable/Sable-primary02.png",
-  imprint: "/sable/Sable-primary01.png",
-  compact: "/sable/Sable-primary03-filter.png",
+  threshold: sableAsset("sable/Sable-primary01.png"),
+  room: sableAsset("sable/Sable-primary02.png"),
+  imprint: sableAsset("sable/Sable-primary01.png"),
+  compact: sableAsset("sable/Sable-primary03-filter.png"),
 };
 
 const defaultStatusLabels: Record<SablePresenceVariant, string> = {
