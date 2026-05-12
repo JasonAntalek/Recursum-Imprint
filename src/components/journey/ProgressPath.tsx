@@ -1,31 +1,92 @@
 import type { ImprintRoom } from "../../types/imprint";
 
+type ProgressRoomState = "locked" | "active" | "calibrated";
+
 interface ProgressPathProps {
   rooms: ImprintRoom[];
   currentRoomIndex: number;
+  completedRoomIds: string[];
+  isInitialImprintComplete: boolean;
+  isFinalReview?: boolean;
+  onActiveImprintSelect: () => void;
+  onRoomSelect: (roomIndex: number) => void;
 }
 
-export function ProgressPath({ rooms, currentRoomIndex }: ProgressPathProps) {
+function roomState(
+  room: ImprintRoom,
+  index: number,
+  currentRoomIndex: number,
+  completedRoomIds: string[],
+  isFinalReview: boolean,
+): ProgressRoomState {
+  if (!isFinalReview && index === currentRoomIndex) {
+    return "active";
+  }
+
+  if (completedRoomIds.includes(room.id)) {
+    return "calibrated";
+  }
+
+  return "locked";
+}
+
+const stateLabels: Record<ProgressRoomState, string> = {
+  locked: "Pending",
+  active: "Calibrating",
+  calibrated: "Calibrated",
+};
+
+export function ProgressPath({
+  rooms,
+  currentRoomIndex,
+  completedRoomIds,
+  isInitialImprintComplete,
+  isFinalReview = false,
+  onActiveImprintSelect,
+  onRoomSelect,
+}: ProgressPathProps) {
   return (
-    <nav className="progress-path" aria-label="Initial Imprint calibration rooms">
+    <nav
+      className={["progress-path", isInitialImprintComplete ? "has-active-imprint" : ""].join(" ")}
+      aria-label="Initial Imprint calibration rooms"
+    >
       {rooms.map((room, index) => {
-        const isActive = index === currentRoomIndex;
-        const isComplete = index < currentRoomIndex;
+        const state = roomState(room, index, currentRoomIndex, completedRoomIds, isFinalReview);
+        const isClickable = state === "calibrated";
 
         return (
-          <div
+          <button
             className={[
               "path-node",
-              isActive ? "is-active" : "",
-              isComplete ? "is-complete" : "",
+              `is-${state}`,
+              isClickable ? "is-clickable" : "",
             ].join(" ")}
+            disabled={!isClickable}
             key={room.id}
+            onClick={() => onRoomSelect(index)}
+            type="button"
           >
             <span className="node-index">{String(index + 1).padStart(2, "0")}</span>
             <span className="node-title">{room.title}</span>
-          </div>
+            <span className="node-state">{stateLabels[state]}</span>
+          </button>
         );
       })}
+      {isInitialImprintComplete ? (
+        <button
+          className={[
+            "path-node",
+            "active-imprint-node",
+            isFinalReview ? "is-active-imprint" : "is-calibrated",
+          ].join(" ")}
+          onClick={onActiveImprintSelect}
+          type="button"
+        >
+          <span className="node-index">08</span>
+          <span className="node-title">Active Imprint</span>
+          <span className="node-state">Active</span>
+        </button>
+      ) : null}
     </nav>
   );
 }

@@ -1,10 +1,13 @@
 import type { ImprintAnswers, ImprintRoom } from "../../types/imprint";
+import { getRoomMilestone } from "../../logic/recognitionLayer";
 import { SablePresence } from "../sable/SablePresence";
 
 interface ImprintPanelProps {
   answers: ImprintAnswers;
   calibrationStarted: boolean;
   currentRoomIndex: number;
+  isFinalReview?: boolean;
+  statusOverride?: string;
   totalRooms: number;
   room: ImprintRoom;
 }
@@ -109,11 +112,15 @@ export function ImprintPanel({
   answers,
   calibrationStarted,
   currentRoomIndex,
+  isFinalReview = false,
+  statusOverride,
   totalRooms,
   room,
 }: ImprintPanelProps) {
   const progress = Math.round(((currentRoomIndex + 1) / totalRooms) * 100);
-  const calibrationStatus = calibrationStarted ? "Active Profile forming" : "Calibration pending";
+  const calibrationStatus =
+    statusOverride ?? (calibrationStarted ? "Active Profile forming" : "Calibration pending");
+  const milestone = getRoomMilestone(room.id);
   const signals = [
     { label: "Identity Anchor", value: combinedSummary(answers, ["identity-name"]) },
     { label: "Relationship Anchors", value: relationshipSummary(answers) },
@@ -138,11 +145,14 @@ export function ImprintPanel({
   return (
     <aside className="imprint-panel" aria-label="Initial Imprint calibration telemetry">
       <div className="telemetry-header">
-        <span>INITIAL IMPRINT</span>
-        <strong>{progress}%</strong>
+        <span>{isFinalReview ? "ACTIVE PROFILE" : "INITIAL IMPRINT"}</span>
+        <div className="telemetry-progress">
+          <strong>{isFinalReview ? "Ready" : `${progress}%`}</strong>
+          <small>{isFinalReview ? "Profile Instructions" : milestone}</small>
+        </div>
       </div>
       <div className="meter">
-        <span style={{ width: `${progress}%` }} />
+        <span style={{ width: `${isFinalReview ? 100 : progress}%` }} />
       </div>
       <SablePresence
         className="imprint-sable-signal"
@@ -155,8 +165,8 @@ export function ImprintPanel({
         <strong>{calibrationStatus}</strong>
       </div>
       <div className="telemetry-block">
-        <span>Current room</span>
-        <strong>{room.title}</strong>
+        <span>{isFinalReview ? "Output" : "Current room"}</span>
+        <strong>{isFinalReview ? "Mini-Bio / Profile Instructions" : room.title}</strong>
       </div>
       <div className="signal-stack">
         {signals.map((signal) => {

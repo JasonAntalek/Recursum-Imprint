@@ -12,7 +12,10 @@ interface RoomViewProps {
   onBeginThresholdCalibration: () => void;
   onOpenThresholdPreview: () => void;
   onValidityChange: (isValid: boolean) => void;
+  onDismissMidpointRecognition: () => void;
+  reopenMessage?: string;
   showThresholdPreview: boolean;
+  showMidpointRecognition: boolean;
 }
 
 function hasAnswer(block: CardBlock, answer?: ImprintAnswer) {
@@ -88,14 +91,32 @@ function ThresholdPreview({ onBegin }: { onBegin: () => void }) {
   );
 }
 
+function MidpointRecognition({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <aside className="midpoint-recognition" aria-label="Sable recognition">
+      <p>
+        A shape is forming now. Not a label. A working pattern. Recursum is starting to see what
+        moves you, what complicates movement, and what kind of support will not insult your
+        intelligence.
+      </p>
+      <button onClick={onDismiss} type="button">
+        Dismiss
+      </button>
+    </aside>
+  );
+}
+
 export function RoomView({
   room,
   answers,
   calibrationStarted,
   onAnswerChange,
   onBeginThresholdCalibration,
+  onDismissMidpointRecognition,
   onOpenThresholdPreview,
   onValidityChange,
+  reopenMessage,
+  showMidpointRecognition,
   showThresholdPreview,
 }: RoomViewProps) {
   const isValid = useMemo(() => isRoomComplete(room, answers), [answers, room]);
@@ -119,6 +140,16 @@ export function RoomView({
         statusLabel={room.id === "threshold" ? "SABLE ONLINE" : "GUIDE SIGNAL"}
         variant={room.id === "threshold" ? "threshold" : "room"}
       />
+
+      {reopenMessage ? (
+        <aside className="reopen-recognition" aria-label="Sable recalibration note">
+          {reopenMessage}
+        </aside>
+      ) : null}
+
+      {showMidpointRecognition ? (
+        <MidpointRecognition onDismiss={onDismissMidpointRecognition} />
+      ) : null}
 
       <div className="block-stack">
         {room.blocks.map((block) => {

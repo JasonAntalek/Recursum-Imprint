@@ -15,7 +15,7 @@ export const imprintRooms: ImprintRoom[] = [
     sableFrame:
       "I'm Sable. I'll guide your Initial Imprint calibration. This is not a personality quiz wearing better shoes. Your choices teach Recursum how to begin with you: how to speak, what to notice, when to challenge, and where not to waste your time.\n\nPick what fits. Add detail only where it matters.",
     sableReadout:
-      "The threshold is open. Recursum is ready to begin Initial Imprint calibration.",
+      "The threshold is open. Recursum is not asking for everything. Only enough to stop beginning generically.",
     imprintSummaryLabel: "Threshold Signal",
     blocks: [
       {
@@ -34,7 +34,7 @@ export const imprintRooms: ImprintRoom[] = [
     sableFrame:
       "First, I need to know how to address you and what personal anchors belong near the beginning. We will not turn this into a government office.",
     sableReadout:
-      "Identity anchor calibrated. Recursum now knows how to address you and what personal anchors may matter.",
+      "Identity anchor set. Recursum now knows how to address you without guessing.",
     imprintSummaryLabel: "Identity Anchor",
     blocks: [
       {
@@ -120,7 +120,7 @@ export const imprintRooms: ImprintRoom[] = [
     sableFrame:
       "Now we locate your operating signal. Pick what fits. Do not audition for your better self. That person has terrible data quality.",
     sableReadout:
-      "Core signal calibrated. Recursum now has an initial calibration on what moves you and what can slow you down.",
+      "Core signal emerging. Motivation and friction are both visible now. Useful. Humans rarely move in one direction without dragging a small committee behind them.",
     imprintSummaryLabel: "Core Signal",
     blocks: [
       {
@@ -193,7 +193,7 @@ export const imprintRooms: ImprintRoom[] = [
     sableFrame:
       "Now we move into the world you are building inside. Work, money, brand, role, responsibility. The public stuff. The private pressure. The things that pretend to be separate.",
     sableReadout:
-      "Context signal calibrated. Recursum now knows which arena future guidance needs to belong in.",
+      "Context map forming. Future guidance now has a room to belong in.",
     imprintSummaryLabel: "Work / Brand Context",
     blocks: [
       {
@@ -259,7 +259,7 @@ export const imprintRooms: ImprintRoom[] = [
     sableFrame:
       "Now we look at pressure. Not to diagnose you. To stop Recursum from giving advice that works only for imaginary people with clean calendars and no nervous systems.",
     sableReadout:
-      "Pressure pattern calibrated. Recursum now has early warnings for how stress may change behavior.",
+      "Pressure pattern detected. Recursum now has early warnings for how stress may change the way decisions happen.",
     imprintSummaryLabel: "Pressure Pattern",
     blocks: [
       {
@@ -349,7 +349,7 @@ export const imprintRooms: ImprintRoom[] = [
     sableFrame:
       "Now we calibrate the relationship. AI can be a mirror, a strategist, a coach, a builder, a file cabinet with opinions. Best to choose before it starts rearranging the furniture.",
     sableReadout:
-      "Relationship calibration active. Recursum now knows how direct, structured, warm, or challenging to be.",
+      "Relationship calibration online. Recursum now knows whether to bring warmth, structure, pressure, brevity, or a sharper blade.",
     imprintSummaryLabel: "AI Relationship",
     blocks: [
       {
@@ -417,7 +417,7 @@ export const imprintRooms: ImprintRoom[] = [
     sableFrame:
       "Last room before the Active Profile comes online. Direction matters. Otherwise a smart system can help you move faster in the wrong direction. Very efficient. Very bad.",
     sableReadout:
-      "Direction signal calibrated. Recursum is ready to activate the profile.",
+      "Initial Imprint ready. Enough signal has gathered for Recursum to begin with context.",
     imprintSummaryLabel: "Direction",
     blocks: [
       {
