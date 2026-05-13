@@ -65,8 +65,7 @@ button {
 
 .top-header,
 .progress-path,
-.workspace-grid,
-.navigation-bar {
+.workspace-grid {
   margin-inline: auto;
   max-width: 1440px;
   position: relative;
@@ -487,6 +486,10 @@ h1 {
   margin-top: 10px;
 }
 
+.block-drawer .card-selector {
+  margin-top: 14px;
+}
+
 .threshold-preview {
   background:
     linear-gradient(135deg, rgba(117, 207, 255, 0.1), rgba(4, 12, 20, 0.72)),
@@ -712,6 +715,23 @@ h1 {
   padding: 0 16px;
 }
 
+.text-field-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.text-field-wrap {
+  display: grid;
+  gap: 8px;
+}
+
+.text-field-wrap span {
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
 .clarification-field {
   line-height: 1.5;
   padding: 14px 16px;
@@ -862,6 +882,34 @@ h1 {
   padding-left: 18px;
 }
 
+.sable-read-stack {
+  display: grid;
+  gap: 14px;
+  margin-top: 22px;
+}
+
+.sable-read-section {
+  background: rgba(4, 12, 20, 0.58);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 16px;
+}
+
+.sable-read-section span {
+  color: var(--signal);
+  display: block;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  margin-bottom: 9px;
+  text-transform: uppercase;
+}
+
+.sable-read-section p {
+  color: var(--muted);
+  line-height: 1.6;
+}
+
 .completion-status-strip {
   display: grid;
   gap: 10px;
@@ -957,6 +1005,39 @@ h1 {
   font-size: 0.88rem;
   line-height: 1.45;
   margin-top: 12px;
+}
+
+.recursum-instructions-panel {
+  align-self: start;
+}
+
+.instruction-copy-block {
+  margin-top: 22px;
+}
+
+.instruction-copy-block pre {
+  background: rgba(3, 9, 16, 0.72);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  color: var(--muted);
+  font: inherit;
+  line-height: 1.58;
+  margin: 0;
+  max-height: 620px;
+  overflow: auto;
+  padding: 16px;
+  white-space: pre-wrap;
+}
+
+.instruction-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.instruction-actions .nav-button {
+  justify-content: center;
+  width: 100%;
 }
 
 .final-actions {
@@ -1140,9 +1221,13 @@ h1 {
 
 .navigation-bar {
   display: flex;
+  flex-wrap: wrap;
   gap: 14px;
-  justify-content: flex-end;
-  padding-top: 24px;
+  justify-content: space-between;
+  margin-top: 16px;
+  position: relative;
+  width: 100%;
+  z-index: 1;
 }
 
 .nav-button {
@@ -1161,6 +1246,8 @@ h1 {
   background: var(--signal);
   color: #06101a;
   font-weight: 750;
+  min-width: 170px;
+  justify-content: center;
 }
 
 .nav-button.secondary {

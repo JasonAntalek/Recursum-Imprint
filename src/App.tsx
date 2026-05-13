@@ -1,19 +1,18 @@
-import { ChevronLeft, ChevronRight, Clipboard } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clipboard, Download } from "lucide-react";
 import { imprintRooms } from "./data/imprintRooms";
 import { sampleImprintAnswers } from "./data/sampleImprintAnswers";
 import { DevJumpButton } from "./components/dev/DevJumpButton";
 import { AppShell } from "./components/layout/AppShell";
 import { Header } from "./components/layout/Header";
 import { ImprintPanel } from "./components/imprint/ImprintPanel";
-import {
-  generateProfileInstructions,
-  ProfileInstructionsBlock,
-} from "./components/imprint/ProfileInstructionsBlock";
 import { ProgressPath } from "./components/journey/ProgressPath";
-import { RoomView } from "./components/journey/RoomView";
+import { isRoomComplete, RoomView } from "./components/journey/RoomView";
 import { SablePresence } from "./components/sable/SablePresence";
 import { exportImprintPayload } from "./logic/exportImprintPayload";
 import { generateBehaviorRules } from "./logic/generateBehaviorRules";
+import { generateRecursumInstructions } from "./logic/generateRecursumInstructions";
+import { generateSableRead } from "./logic/generateSableRead";
+import { getImprintStageLabel, type ImprintFlowState } from "./logic/getImprintStageLabel";
 import type { ImprintAnswer, ImprintAnswers, ImprintRoomId } from "./types/imprint";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -122,6 +121,50 @@ async function copyTextToClipboard(text: string) {
   return false;
 }
 
+function filenamePart(value?: string) {
+  const cleaned = value
+    ?.trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+
+  return cleaned || "user";
+}
+
+function downloadTextFile(filename: string, text: string) {
+  const blob = new Blob([text], { type: "text/markdown;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function formatSableReadMarkdown(sableRead: ReturnType<typeof generateSableRead>) {
+  return [
+    `# ${sableRead.title}`,
+    "",
+    `## The Signal`,
+    sableRead.signal,
+    "",
+    `## The Pattern`,
+    sableRead.pattern,
+    "",
+    `## The Edge`,
+    sableRead.edge,
+    "",
+    `## Best Use of Recursum`,
+    sableRead.bestUseOfRecursum,
+    "",
+    `## Sable's Closing Read`,
+    sableRead.closingLine,
+  ].join("\n");
+}
+
 function normalizeAnswerValue(answer: ImprintAnswer | undefined, value: string | undefined) {
   if (!value) {
     return undefined;
@@ -137,6 +180,38 @@ function normalizeAnswerValue(answer: ImprintAnswer | undefined, value: string |
 function primaryOrFirstAnswer(answers: ImprintAnswers, blockId: string) {
   const answer = answers[blockId];
   return normalizeAnswerValue(answer, answer?.primary ?? answer?.selected?.[0]);
+}
+
+const regulationPreferenceLabels = new Set([
+  "I need quiet recovery",
+  "I need movement or physical reset",
+  "I need space before making decisions",
+]);
+
+function firstRegulationPreference(answers: ImprintAnswers) {
+  const answer = answers["time-energy-boundaries"];
+  const value = answer?.selected.find((selected) => regulationPreferenceLabels.has(selected));
+  return normalizeAnswerValue(answer, value);
+}
+
+function regulationPhrase(value?: string) {
+  if (!value) {
+    return "";
+  }
+
+  if (value === "I need quiet recovery") {
+    return "needing quiet recovery";
+  }
+
+  if (value === "I need movement or physical reset") {
+    return "needing movement or physical reset";
+  }
+
+  if (value === "I need space before making decisions") {
+    return "needing space before decisions";
+  }
+
+  return lowerFirst(value);
 }
 
 function sentenceJoin(parts: string[]) {
@@ -159,13 +234,23 @@ function recognitionSynopsis(answers: ImprintAnswers) {
   const motivator = primaryOrFirstAnswer(answers, "action-motivation");
   const friction = primaryOrFirstAnswer(answers, "friction-points");
   const workContext = primaryOrFirstAnswer(answers, "work-income-world");
+  const leadership = primaryOrFirstAnswer(answers, "leadership-collaboration-style");
   const responseStyle = primaryOrFirstAnswer(answers, "response-style");
+  const learningPreference = primaryOrFirstAnswer(answers, "learning-preference");
+  const regulationPreference = firstRegulationPreference(answers);
+  const fiveYearPicture = answers["five-year-picture"]?.text?.trim();
   const phrases = [
     motivator ? `moved by ${motivator}` : "",
     friction ? `slowed by ${friction}` : "",
     workContext ? `operating in ${workContext}` : "",
+    leadership ? `collaborating through ${lowerFirst(leadership)}` : "",
     responseStyle ? `prefer support that feels ${lowerFirst(responseStyle)}` : "",
-  ].filter(Boolean);
+    learningPreference ? `learn through ${lowerFirst(learningPreference)}` : "",
+    regulationPreference ? `regulate by ${regulationPhrase(regulationPreference)}` : "",
+    fiveYearPicture ? "holding a five-year picture" : "",
+  ]
+    .filter(Boolean)
+    .slice(0, 5);
 
   return phrases.length > 0
     ? `You are ${sentenceJoin(phrases)}.`
@@ -199,64 +284,30 @@ function testingSnapshot(metrics: TestingMetrics) {
 function ReviewPlaceholder({
   answers,
   behaviorRules,
-  copyInstructionsStatus,
   onPayloadCopied,
-  onCopyInstructions,
   onCloseRecalibrate,
   onRecalibrateProfile,
   onSelectProfileSection,
   recalibrationMode,
+  stageSubtitle,
   testingMetrics,
 }: {
   answers: ImprintAnswers;
   behaviorRules: string[];
-  copyInstructionsStatus: string;
   onPayloadCopied: () => void;
-  onCopyInstructions: (instructions: string) => void;
   onCloseRecalibrate: () => void;
   onRecalibrateProfile: () => void;
   onSelectProfileSection: (roomId: ImprintRoomId) => void;
   recalibrationMode: boolean;
+  stageSubtitle: string;
   testingMetrics: TestingMetrics;
 }) {
   const [copyStatus, setCopyStatus] = useState("");
   const [testingCopyStatus, setTestingCopyStatus] = useState("");
   const recalibrationPanelRef = useRef<HTMLDivElement>(null);
-  const learnedSynopsis = recognitionSynopsis(answers);
-  const beginRules = beginningRules(behaviorRules);
-  const profileInstructions = useMemo(
-    () => generateProfileInstructions(answers, behaviorRules),
-    [answers, behaviorRules],
-  );
+  const sableRead = useMemo(() => generateSableRead(answers), [answers]);
   const snapshot = useMemo(() => testingSnapshot(testingMetrics), [testingMetrics]);
   const testingJson = useMemo(() => JSON.stringify(snapshot, null, 2), [snapshot]);
-  const answeredItems = imprintRooms.flatMap((room) =>
-    room.blocks.map((block) => {
-      const answer = answers[block.id];
-      const selected = answer?.selected ?? [];
-      const displayValue = (selectedValue: string) =>
-        selectedValue === "Other" && answer?.otherClarification?.trim()
-          ? answer.otherClarification.trim()
-          : selectedValue;
-      const secondary = answer?.primary
-        ? selected.filter((value) => value !== answer.primary).map(displayValue)
-        : selected.map(displayValue);
-      const value =
-        (answer?.text ?? "").trim() ||
-        (answer?.primary
-          ? `Primary: ${displayValue(answer.primary)}${secondary.length ? `; Also present: ${secondary.join(", ")}` : ""}`
-          : secondary.join(", ")) ||
-        "No current entry";
-      const clarification = answer?.clarification?.trim();
-
-      return {
-        id: block.id,
-        prompt: block.prompt,
-        value,
-        clarification,
-      };
-    }),
-  );
   const payload = useMemo(
     () =>
       exportImprintPayload({
@@ -268,6 +319,7 @@ function ReviewPlaceholder({
     [answers, behaviorRules],
   );
   const payloadJson = useMemo(() => JSON.stringify(payload, null, 2), [payload]);
+  const nameSlug = filenamePart(answers["identity-name"]?.text);
 
   async function copyPayload() {
     if (await copyTextToClipboard(payloadJson)) {
@@ -286,6 +338,10 @@ function ReviewPlaceholder({
     }
 
     setTestingCopyStatus("Copy unavailable. You can manually select the snapshot.");
+  }
+
+  function downloadSableRead() {
+    downloadTextFile(`sable-read-${nameSlug}.md`, formatSableReadMarkdown(sableRead));
   }
 
   useEffect(() => {
@@ -316,53 +372,44 @@ function ReviewPlaceholder({
 
   return (
     <section className="room-view review-view" aria-labelledby="review-title">
-      <div className="panel-kicker">INITIAL IMPRINT CALIBRATED</div>
-      <h2 id="review-title">Active Profile Ready</h2>
-      <p className="final-subline">Your Active Profile is ready.</p>
+      <div className="panel-kicker">ACTIVE IMPRINT</div>
+      <h2 id="review-title">Your Sable Read</h2>
+      <p className="final-subline">{stageSubtitle}</p>
       <SablePresence
-        message="This is enough for Recursum to begin differently."
+        message="This is the profile reveal. Not a verdict. A clean read of the starting pattern Recursum should respect."
         statusLabel="ACTIVE PROFILE READY"
         variant="imprint"
       />
-      <div className="completion-status-strip" aria-label="Completion status">
-        <span>Initial Imprint calibrated.</span>
-        <span>Active Profile ready.</span>
-        <span>Profile Instructions generated.</span>
-      </div>
-      <div className="review-recognition">
-        <p>
-          This is not all of you. Good. Systems that think they have all of you become dangerous and
-          annoying.
-        </p>
-        <p>But this is enough for Recursum to begin differently.</p>
-      </div>
-      <div className="recognition-synopsis" aria-label="Initial Imprint synopsis">
-        <section>
-          <span>What Recursum has learned</span>
-          <p>{learnedSynopsis}</p>
+      <div className="sable-read-stack" aria-label="Sable Read">
+        <section className="sable-read-section">
+          <span>The Signal</span>
+          <p>{sableRead.signal}</p>
         </section>
-        <section>
-          <span>How Recursum will begin</span>
-          <ul>
-            {beginRules.map((rule) => (
-              <li key={rule}>{rule}</li>
-            ))}
-          </ul>
+        <section className="sable-read-section">
+          <span>The Pattern</span>
+          <p>{sableRead.pattern}</p>
+        </section>
+        <section className="sable-read-section">
+          <span>The Edge</span>
+          <p>{sableRead.edge}</p>
+        </section>
+        <section className="sable-read-section">
+          <span>Best Use of Recursum</span>
+          <p>{sableRead.bestUseOfRecursum}</p>
+        </section>
+        <section className="sable-read-section">
+          <span>Sable's Closing Read</span>
+          <p>{sableRead.closingLine}</p>
         </section>
       </div>
-      <ProfileInstructionsBlock
-        answers={answers}
-        behaviorRules={behaviorRules}
-        copyStatus={copyInstructionsStatus}
-      />
       <div className="final-actions" aria-label="Profile output actions">
         <button
-          className="nav-button primary"
-          onClick={() => onCopyInstructions(profileInstructions)}
+          className="nav-button secondary"
+          onClick={downloadSableRead}
           type="button"
         >
-          <Clipboard size={18} />
-          Copy Mini-Bio Instructions
+          <Download size={18} />
+          Download Sable Read
         </button>
         <button
           className="nav-button secondary recalibrate-profile-button"
@@ -402,18 +449,6 @@ function ReviewPlaceholder({
           {copyStatus ? <span>{copyStatus}</span> : null}
         </div>
         <pre>{payloadJson}</pre>
-      </details>
-      <details className="developer-payload-preview">
-        <summary>Review Captured Answers</summary>
-        <div className="review-stack">
-          {answeredItems.map((item) => (
-            <div className="review-row" key={item.id}>
-              <span>{item.prompt}</span>
-              <strong>{item.value}</strong>
-              {item.clarification ? <em>{item.clarification}</em> : null}
-            </div>
-          ))}
-        </div>
       </details>
       <details className="developer-payload-preview testing-notes-snapshot">
         <summary>Testing Notes Snapshot</summary>
@@ -473,10 +508,19 @@ export default function App() {
     () => Array.from(new Set(imprintRooms.flatMap((room) => generateBehaviorRules(room)))),
     [],
   );
+  const recursumInstructions = useMemo(
+    () => generateRecursumInstructions(answers, behaviorRules),
+    [answers, behaviorRules],
+  );
   const isInitialImprintComplete = completedRoomIds.length === imprintRooms.length;
 
   const canGoBack = currentRoomIndex > 0;
   const isFinalRoom = currentRoomIndex === imprintRooms.length - 1;
+  const isCurrentRoomComplete = useMemo(
+    () => isRoomComplete(currentRoom, answers),
+    [answers, currentRoom],
+  );
+  const canApplyCurrentRoom = returnToFinalAfterRoom ? isCurrentRoomComplete : isCurrentRoomValid;
 
   useEffect(() => {
     const scrollTarget = journeyTopRef.current;
@@ -560,7 +604,7 @@ export default function App() {
   }
 
   function handleContinue() {
-    if (!isCurrentRoomValid) {
+    if (!canApplyCurrentRoom) {
       return;
     }
 
@@ -633,7 +677,7 @@ export default function App() {
 
   async function handleCopyInstructions(instructions: string) {
     if (await copyTextToClipboard(instructions)) {
-      setCopyInstructionsStatus("Copied. Profile instructions ready to paste.");
+      setCopyInstructionsStatus("Copied. Recursum Instructions ready to paste.");
       setProfileInstructionsCopied(true);
       setTestingMetrics((currentMetrics) => ({
         ...currentMetrics,
@@ -643,6 +687,13 @@ export default function App() {
     }
 
     setCopyInstructionsStatus("Copy unavailable. You can manually select the text.");
+  }
+
+  function handleDownloadInstructions() {
+    downloadTextFile(
+      `recursum-instructions-${filenamePart(answers["identity-name"]?.text)}.md`,
+      recursumInstructions.copyBlock,
+    );
   }
 
   function handleRecalibrateProfile() {
@@ -736,23 +787,40 @@ export default function App() {
     ? recalibrationMode
       ? "Recalibration active"
       : profileInstructionsCopied
-        ? "Profile Instructions copied"
+        ? "Copied"
         : profileInstructionsUpdated
-          ? "Profile Instructions updated"
-          : "Profile Instructions ready"
+          ? "Updated"
+          : "Ready to copy"
     : returnToFinalAfterRoom
       ? "Recalibration active"
       : undefined;
+  const instructionStatus = profileInstructionsCopied
+    ? "Copied"
+    : profileInstructionsUpdated
+      ? "Updated"
+      : "Ready to copy";
+  const flowState: ImprintFlowState = reviewVisible
+    ? "completed"
+    : calibrationStarted
+      ? "in_progress"
+      : "not_started";
+  const stageLabel = getImprintStageLabel({
+    activeProfileStatus: profileInstructionsUpdated ? "updated" : "ready",
+    flowState,
+    isInitialImprintComplete,
+    isRecalibrationMode: recalibrationMode || returnToFinalAfterRoom,
+  });
 
   return (
     <AppShell>
       {SHOW_DEV_TOOLS ? <DevJumpButton onClick={handleDevJumpToCompletedImprint} /> : null}
-      <Header />
+      <Header subtitle={stageLabel.subtitle} title={stageLabel.title} />
       <ProgressPath
         completedRoomIds={completedRoomIds}
         currentRoomIndex={currentRoomIndex}
         isFinalReview={reviewVisible}
         isInitialImprintComplete={isInitialImprintComplete}
+        isRecalibrating={returnToFinalAfterRoom}
         onActiveImprintSelect={handleActiveImprintSelect}
         onRoomSelect={handleProgressRoomSelect}
         rooms={imprintRooms}
@@ -765,8 +833,6 @@ export default function App() {
             <ReviewPlaceholder
               answers={answers}
               behaviorRules={behaviorRules}
-              copyInstructionsStatus={copyInstructionsStatus}
-              onCopyInstructions={handleCopyInstructions}
               onCloseRecalibrate={() => setRecalibrationMode(false)}
               onPayloadCopied={() =>
                 setTestingMetrics((currentMetrics) => ({
@@ -777,22 +843,45 @@ export default function App() {
               onRecalibrateProfile={handleRecalibrateProfile}
               onSelectProfileSection={handleSelectProfileSection}
               recalibrationMode={recalibrationMode}
+              stageSubtitle={stageLabel.subtitle}
               testingMetrics={testingMetrics}
             />
           ) : (
-            <RoomView
-              answers={answers}
-              calibrationStarted={calibrationStarted}
-              onAnswerChange={handleAnswerChange}
-              onBeginThresholdCalibration={beginThresholdCalibration}
-              onDismissMidpointRecognition={() => setShowMidpointRecognition(false)}
-              onOpenThresholdPreview={() => setShowThresholdPreview(true)}
-              onValidityChange={setIsCurrentRoomValid}
-              reopenMessage={reopenMessage}
-              room={currentRoom}
-              showMidpointRecognition={showMidpointRecognition && currentRoom.id === "pressure"}
-              showThresholdPreview={showThresholdPreview}
-            />
+            <>
+              <RoomView
+                answers={answers}
+                calibrationStarted={calibrationStarted}
+                onAnswerChange={handleAnswerChange}
+                onBeginThresholdCalibration={beginThresholdCalibration}
+                onDismissMidpointRecognition={() => setShowMidpointRecognition(false)}
+                onOpenThresholdPreview={() => setShowThresholdPreview(true)}
+                onValidityChange={setIsCurrentRoomValid}
+                reopenMessage={reopenMessage}
+                room={currentRoom}
+                showMidpointRecognition={showMidpointRecognition && currentRoom.id === "pressure"}
+                showThresholdPreview={showThresholdPreview}
+              />
+              <footer className="navigation-bar">
+                <button
+                  className="nav-button secondary"
+                  disabled={!canGoBack && !returnToFinalAfterRoom}
+                  onClick={handleBack}
+                  type="button"
+                >
+                  <ChevronLeft size={18} />
+                  Back
+                </button>
+                <button
+                  className="nav-button primary"
+                  disabled={!canApplyCurrentRoom}
+                  onClick={handleContinue}
+                  type="button"
+                >
+                  {returnToFinalAfterRoom ? "Update Imprint" : "Continue"}
+                  <ChevronRight size={18} />
+                </button>
+              </footer>
+            </>
           )}
         </div>
         <ImprintPanel
@@ -800,34 +889,16 @@ export default function App() {
           calibrationStarted={calibrationStarted}
           room={currentRoom}
           currentRoomIndex={currentRoomIndex}
+          instructionMessage={copyInstructionsStatus}
+          instructionStatus={instructionStatus}
           isFinalReview={reviewVisible}
+          onCopyInstructions={() => handleCopyInstructions(recursumInstructions.copyBlock)}
+          onDownloadInstructions={handleDownloadInstructions}
+          recursumInstructions={recursumInstructions}
           statusOverride={panelStatus}
           totalRooms={imprintRooms.length}
         />
       </div>
-
-      {!reviewVisible ? (
-        <footer className="navigation-bar">
-          <button
-            className="nav-button secondary"
-            disabled={!canGoBack && !returnToFinalAfterRoom}
-            onClick={handleBack}
-            type="button"
-          >
-            <ChevronLeft size={18} />
-            Back
-          </button>
-          <button
-            className="nav-button primary"
-            disabled={!isCurrentRoomValid}
-            onClick={handleContinue}
-            type="button"
-          >
-            {returnToFinalAfterRoom ? "SET" : isFinalRoom ? "Activate Profile" : "Continue"}
-            <ChevronRight size={18} />
-          </button>
-        </footer>
-      ) : null}
     </AppShell>
   );
 }

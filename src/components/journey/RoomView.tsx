@@ -174,28 +174,35 @@ export function RoomView({
                 <details className="block-drawer">
                   <summary>{block.drawer.title}</summary>
                   <p>{block.drawer.body}</p>
+                  <CardSelector
+                    answer={answer}
+                    block={block}
+                    onChange={(nextAnswer) => {
+                      onAnswerChange(block.id, nextAnswer);
+                    }}
+                  />
                 </details>
-              ) : null}
+              ) : (
+                <CardSelector
+                  answer={answer}
+                  block={block}
+                  onChange={(nextAnswer) => {
+                    onAnswerChange(block.id, nextAnswer);
 
-              <CardSelector
-                answer={answer}
-                block={block}
-                onChange={(nextAnswer) => {
-                  onAnswerChange(block.id, nextAnswer);
+                    if (block.id !== "threshold-readiness") {
+                      return;
+                    }
 
-                  if (block.id !== "threshold-readiness") {
-                    return;
-                  }
+                    if (nextAnswer.selected.includes("Show me what this creates")) {
+                      onOpenThresholdPreview();
+                    }
 
-                  if (nextAnswer.selected.includes("Show me what this creates")) {
-                    onOpenThresholdPreview();
-                  }
-
-                  if (nextAnswer.selected.includes("Begin Calibration")) {
-                    onBeginThresholdCalibration();
-                  }
-                }}
-              />
+                    if (nextAnswer.selected.includes("Begin Calibration")) {
+                      onBeginThresholdCalibration();
+                    }
+                  }}
+                />
+              )}
             </article>
           );
         })}

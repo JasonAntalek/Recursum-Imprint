@@ -63,6 +63,11 @@ function withOptional<T extends Record<string, unknown>>(value: T): T {
   ) as T;
 }
 
+function optionalObject<T extends Record<string, unknown>>(value: T) {
+  const cleaned = withOptional(value);
+  return Object.keys(cleaned).length > 0 ? cleaned : undefined;
+}
+
 function combineClarifications(items: Array<[string, string | undefined]>) {
   const values = items
     .filter(([, value]) => value)
@@ -165,6 +170,50 @@ function relationshipAnchors(answer?: ImprintAnswer) {
     });
 }
 
+function birthDetails(answer?: ImprintAnswer) {
+  return optionalObject({
+    birthDate: cleanText(answer?.textValues?.birthDate),
+    birthPlace: cleanText(answer?.textValues?.birthPlace),
+    birthTime: cleanText(answer?.textValues?.birthTime),
+  });
+}
+
+function structuredSelection(set: SelectionSet) {
+  return optionalObject({
+    primary: set.primary,
+    secondary: optionalArray(set.secondary),
+    clarification: set.clarification,
+  });
+}
+
+const regulationPreferenceLabels = new Set([
+  "I need quiet recovery",
+  "I need movement or physical reset",
+  "I need space before making decisions",
+]);
+
+const decisionOrientationMap: Record<string, string> = {
+  "Data and pros / cons": "logic",
+  "Instinct and gut feeling": "intuition",
+  "Counsel from trusted people": "relational",
+  "Speed and action": "speed",
+  "Long-term vision": "vision",
+  "Freedom and flexibility": "autonomy",
+  "Avoiding regret": "loss_avoidance",
+};
+
+function decisionOrientation(decision: SelectionSet) {
+  if (decision.primary) {
+    return decisionOrientationMap[decision.primary];
+  }
+
+  const orientations = decision.selected
+    .map((value) => decisionOrientationMap[value])
+    .filter(Boolean);
+
+  return orientations.length > 0 ? orientations : undefined;
+}
+
 function jsonSafeSnapshot(answers: ImprintAnswers) {
   return JSON.parse(JSON.stringify(answers)) as object;
 }
@@ -182,6 +231,7 @@ export function exportImprintPayload({
   const workWorld = selectionSet(answers["work-income-world"]);
   const brandFocus = selectionSet(answers["public-identity"]);
   const workAlignment = selectionSet(answers["work-alignment"]);
+  const leadershipStyle = selectionSet(answers["leadership-collaboration-style"]);
   const fears = selectionSet(answers["fear-resistance"]);
   const aliveness = selectionSet(answers["alive-unstoppable"]);
   const decision = selectionSet(answers["decision-lead"]);
@@ -189,8 +239,12 @@ export function exportImprintPayload({
   const currentAiUse = selectionSet(answers["current-ai-use"]);
   const desiredAiUse = selectionSet(answers["future-recursum-help"]);
   const responseStyle = selectionSet(answers["response-style"]);
+  const learningPreference = selectionSet(answers["learning-preference"]);
   const direction = selectionSet(answers["long-term-direction"]);
   const setbacks = selectionSet(answers["setback-response"]);
+  const regulationPreferences = boundaries.selected.filter((value) =>
+    regulationPreferenceLabels.has(value),
+  );
 
   return {
     schemaVersion: "0.1",
@@ -201,6 +255,7 @@ export function exportImprintPayload({
     identity: withOptional({
       preferredName: cleanText(answers["identity-name"]?.text),
       relationshipAnchors: relationshipAnchors(answers["identity-close-profile"]),
+      birthDetails: birthDetails(answers["identity-birth-details"]),
     }),
     coreSignal: withOptional({
       descriptors: optionalArray(descriptors.selected),
@@ -223,6 +278,7 @@ export function exportImprintPayload({
       additionalBrandFocus: optionalArray(brandFocus.secondary),
       alignment: workAlignment.selected[0],
       alignmentClarification: workAlignment.clarification,
+      leadershipStyle: structuredSelection(leadershipStyle),
     }),
     pressurePattern: withOptional({
       primaryFear: fears.primary,
@@ -230,9 +286,11 @@ export function exportImprintPayload({
       alivenessSignals: optionalArray(aliveness.primary ? [aliveness.primary, ...aliveness.secondary] : aliveness.selected),
       primaryDecisionStyle: decision.primary,
       secondaryDecisionStyles: optionalArray(decision.secondary),
+      decisionOrientation: decisionOrientation(decision),
       timeEnergyBoundaryPatterns: optionalArray(
         boundaries.primary ? [boundaries.primary, ...boundaries.secondary] : boundaries.selected,
       ),
+      regulationPreferences: optionalArray(regulationPreferences),
     }),
     aiRelationship: withOptional({
       currentUses: optionalArray(currentAiUse.selected),
@@ -242,6 +300,7 @@ export function exportImprintPayload({
       primaryResponseStyle: responseStyle.primary,
       secondaryResponseStyles: optionalArray(responseStyle.secondary),
       responseStyleClarification: responseStyle.clarification,
+      learningPreference: structuredSelection(learningPreference),
     }),
     direction: withOptional({
       primaryLongTermDirection: direction.primary,
@@ -250,6 +309,7 @@ export function exportImprintPayload({
         ["Long-term direction", direction.clarification],
         ["Setback response", setbacks.clarification],
       ]),
+      fiveYearPicture: cleanText(answers["five-year-picture"]?.text),
       primarySetbackResponse: setbacks.primary,
       secondarySetbackResponses: optionalArray(setbacks.secondary),
     }),

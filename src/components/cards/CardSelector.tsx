@@ -12,6 +12,7 @@ const emptyAnswer: ImprintAnswer = {
   otherClarification: "",
   conditionalClarifications: {},
   text: "",
+  textValues: {},
 };
 
 export function CardSelector({ block, answer = emptyAnswer, onChange }: CardSelectorProps) {
@@ -36,6 +37,7 @@ export function CardSelector({ block, answer = emptyAnswer, onChange }: CardSele
       selected: selectedValues,
       primary: answer.primary,
       text: answer.text ?? "",
+      textValues: answer.textValues ?? {},
       clarification: answer.clarification ?? "",
       otherClarification: answer.otherClarification ?? "",
       conditionalClarifications,
@@ -102,13 +104,37 @@ export function CardSelector({ block, answer = emptyAnswer, onChange }: CardSele
   return (
     <div className="card-selector">
       {block.mode === "text" ? (
-        <input
-          className="text-field"
-          onChange={(event) => updateAnswer({ text: event.target.value })}
-          placeholder={block.placeholder}
-          type="text"
-          value={answer.text ?? ""}
-        />
+        block.textFields ? (
+          <div className="text-field-grid">
+            {block.textFields.map((field) => (
+              <label className="text-field-wrap" key={field.id}>
+                <span>{field.label}</span>
+                <input
+                  className="text-field"
+                  onChange={(event) =>
+                    updateAnswer({
+                      textValues: {
+                        ...(answer.textValues ?? {}),
+                        [field.id]: event.target.value,
+                      },
+                    })
+                  }
+                  placeholder={field.placeholder}
+                  type={field.inputType ?? "text"}
+                  value={answer.textValues?.[field.id] ?? ""}
+                />
+              </label>
+            ))}
+          </div>
+        ) : (
+          <input
+            className="text-field"
+            onChange={(event) => updateAnswer({ text: event.target.value })}
+            placeholder={block.placeholder}
+            type="text"
+            value={answer.text ?? ""}
+          />
+        )
       ) : (
         <>
           {showPrimaryPrompt ? (

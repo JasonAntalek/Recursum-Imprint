@@ -8,6 +8,7 @@ interface ProgressPathProps {
   completedRoomIds: string[];
   isInitialImprintComplete: boolean;
   isFinalReview?: boolean;
+  isRecalibrating?: boolean;
   onActiveImprintSelect: () => void;
   onRoomSelect: (roomIndex: number) => void;
 }
@@ -42,13 +43,14 @@ export function ProgressPath({
   completedRoomIds,
   isInitialImprintComplete,
   isFinalReview = false,
+  isRecalibrating = false,
   onActiveImprintSelect,
   onRoomSelect,
 }: ProgressPathProps) {
   return (
     <nav
       className={["progress-path", isInitialImprintComplete ? "has-active-imprint" : ""].join(" ")}
-      aria-label="Initial Imprint calibration rooms"
+      aria-label="Imprint calibration rooms"
     >
       {rooms.map((room, index) => {
         const state = roomState(room, index, currentRoomIndex, completedRoomIds, isFinalReview);
@@ -68,7 +70,9 @@ export function ProgressPath({
           >
             <span className="node-index">{String(index + 1).padStart(2, "0")}</span>
             <span className="node-title">{room.title}</span>
-            <span className="node-state">{stateLabels[state]}</span>
+            <span className="node-state">
+              {state === "active" && isRecalibrating ? "Recalibrating" : stateLabels[state]}
+            </span>
           </button>
         );
       })}
@@ -78,7 +82,9 @@ export function ProgressPath({
             "path-node",
             "active-imprint-node",
             isFinalReview ? "is-active-imprint" : "is-calibrated",
+            isRecalibrating ? "is-locked" : "",
           ].join(" ")}
+          disabled={isRecalibrating}
           onClick={onActiveImprintSelect}
           type="button"
         >

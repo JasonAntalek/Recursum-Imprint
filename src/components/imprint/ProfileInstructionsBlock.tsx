@@ -51,6 +51,10 @@ function sentence(parts: Array<string | undefined>) {
   return parts.filter(Boolean).join(" ");
 }
 
+function punctuate(value: string) {
+  return /[.!?]$/.test(value) ? value : `${value}.`;
+}
+
 function section(title: string, lines: Array<string | undefined>) {
   const content = lines.flatMap((line) => {
     const trimmed = line?.trim();
@@ -59,22 +63,77 @@ function section(title: string, lines: Array<string | undefined>) {
   return content.length > 0 ? `${title}:\n${content.join("\n")}` : "";
 }
 
+function hasTextValue(answer: ImprintAnswer | undefined) {
+  return Object.values(answer?.textValues ?? {}).some((value) => value.trim());
+}
+
+const regulationPreferences = new Set([
+  "I need quiet recovery",
+  "I need movement or physical reset",
+  "I need space before making decisions",
+]);
+
+function regulationInstruction(values: string[]) {
+  if (values.length === 0) {
+    return undefined;
+  }
+
+  const instructions = values.map((value) => {
+    if (value === "I need quiet recovery") {
+      return "reduce pressure and offer a smaller next step when energy drops";
+    }
+
+    if (value === "I need movement or physical reset") {
+      return "make room for physical reset before returning to analysis";
+    }
+
+    if (value === "I need space before making decisions") {
+      return "allow space before forcing decisions";
+    }
+
+    return undefined;
+  }).filter(Boolean);
+
+  return instructions.length > 0
+    ? `When intensity is high, ${joinList(instructions as string[])}.`
+    : undefined;
+}
+
+const decisionSupportInstructions: Record<string, string> = {
+  "Data and pros / cons": "Support tough decisions with evidence, tradeoffs, and clear pros / cons.",
+  "Instinct and gut feeling": "Leave room for instinct, then help test it against the practical context.",
+  "Counsel from trusted people": "Consider relational counsel and who should be included before locking a decision.",
+  "Speed and action": "Favor momentum, fast narrowing, and a concrete next move.",
+  "Long-term vision": "Anchor decisions in the long-term vision before optimizing the immediate step.",
+  "Freedom and flexibility": "Protect autonomy and optionality when weighing decisions.",
+  "Avoiding regret": "Name reversible versus irreversible risks so regret does not quietly drive the whole process.",
+};
+
+function decisionInstruction(decisionLead?: string) {
+  return decisionLead ? decisionSupportInstructions[decisionLead] : undefined;
+}
+
 export function generateProfileInstructions(answers: ImprintAnswers, behaviorRules: string[]) {
   const name = cleanText(answers["identity-name"]?.text);
+  const hasBirthDetails = hasTextValue(answers["identity-birth-details"]);
   const descriptors = selectionSet(answers, "core-descriptors");
   const motivator = selectionSet(answers, "action-motivation");
   const friction = selectionSet(answers, "friction-points");
   const workWorld = selectionSet(answers, "work-income-world");
   const brand = selectionSet(answers, "public-identity");
   const alignment = selectionSet(answers, "work-alignment");
+  const leadership = selectionSet(answers, "leadership-collaboration-style");
   const fear = selectionSet(answers, "fear-resistance");
   const aliveness = selectionSet(answers, "alive-unstoppable");
   const decision = selectionSet(answers, "decision-lead");
   const boundaries = selectionSet(answers, "time-energy-boundaries");
+  const regulation = boundaries.selected.filter((value) => regulationPreferences.has(value));
   const currentAiUse = selectionSet(answers, "current-ai-use");
   const desiredAiUse = selectionSet(answers, "future-recursum-help");
   const responseStyle = selectionSet(answers, "response-style");
+  const learningPreference = selectionSet(answers, "learning-preference");
   const direction = selectionSet(answers, "long-term-direction");
+  const fiveYearPicture = cleanText(answers["five-year-picture"]?.text);
   const setback = selectionSet(answers, "setback-response");
   const userLabel = name ?? "The user";
   const selectedRules = behaviorRules
@@ -82,7 +141,12 @@ export function generateProfileInstructions(answers: ImprintAnswers, behaviorRul
     .slice(0, 6);
 
   const sections = [
-    section("Name", [name ?? "Not provided"]),
+    section("Name", [
+      name ?? "Not provided",
+      hasBirthDetails
+        ? "Optional symbolic profile data is available if the user later requests symbolic or personality lenses."
+        : undefined,
+    ]),
     section("Core Signal", [
       sentence([
         descriptors.selected.length > 0
@@ -128,18 +192,24 @@ export function generateProfileInstructions(answers: ImprintAnswers, behaviorRul
           ? `Public or brand focus: ${joinList(brand.selected)}.`
           : undefined,
         alignment.selected.length > 0 ? `Work alignment: ${alignment.selected[0]}.` : undefined,
+        leadership.selected.length > 0
+          ? `Leadership / collaboration style: ${joinList(leadership.selected)}.`
+          : undefined,
       ]),
       workWorld.clarification,
       brand.clarification,
+      leadership.clarification,
     ]),
     section("Pressure Pattern", [
       sentence([
         fear.primary ? `Primary pressure signal: ${fear.primary}.` : undefined,
         fear.secondary.length > 0 ? `Other fears or resistance: ${joinList(fear.secondary)}.` : undefined,
         decision.primary ? `Decision style: ${decision.primary}.` : undefined,
+        decisionInstruction(decision.primary),
         boundaries.selected.length > 0
           ? `Time, energy, and boundaries pattern: ${joinList(boundaries.selected)}.`
           : undefined,
+        regulationInstruction(regulation),
         setback.primary ? `Setback response: ${setback.primary}.` : undefined,
       ]),
       fear.clarification,
@@ -153,10 +223,14 @@ export function generateProfileInstructions(answers: ImprintAnswers, behaviorRul
         desiredAiUse.selected.length > 0
           ? `Desired Recursum support: ${joinList(desiredAiUse.selected)}.`
           : undefined,
+        learningPreference.selected.length > 0
+          ? `Explain new concepts through ${joinList(learningPreference.selected)}.`
+          : undefined,
         aliveness.selected.length > 0
           ? `Support should stay connected to what creates aliveness: ${joinList(aliveness.selected)}.`
           : undefined,
       ]),
+      learningPreference.clarification,
     ]),
     section("Direction", [
       sentence([
@@ -164,6 +238,7 @@ export function generateProfileInstructions(answers: ImprintAnswers, behaviorRul
         direction.secondary.length > 0
           ? `Additional future signals: ${joinList(direction.secondary)}.`
           : undefined,
+        fiveYearPicture ? `Five-year picture: ${punctuate(fiveYearPicture)}` : undefined,
         direction.primary || direction.secondary.length > 0
           ? "Future support should serve this direction rather than optimizing disconnected tasks."
           : undefined,

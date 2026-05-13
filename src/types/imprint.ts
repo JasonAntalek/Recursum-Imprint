@@ -19,6 +19,13 @@ export interface CardDrawer {
   body: string;
 }
 
+export interface TextFieldRule {
+  id: string;
+  label: string;
+  placeholder?: string;
+  inputType?: "text" | "date" | "time";
+}
+
 export interface ConditionalClarificationRule {
   id: string;
   prompt: string;
@@ -40,6 +47,7 @@ export interface CardBlock {
   clarificationPlaceholder?: string;
   conditionalClarifications?: Record<string, ConditionalClarificationRule[]>;
   placeholder?: string;
+  textFields?: TextFieldRule[];
   drawer?: CardDrawer;
 }
 
@@ -60,6 +68,7 @@ export interface ImprintAnswer {
   otherClarification?: string;
   conditionalClarifications?: Record<string, string>;
   text?: string;
+  textValues?: Record<string, string>;
 }
 
 export type ImprintAnswers = Record<string, ImprintAnswer>;

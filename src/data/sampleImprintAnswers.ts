@@ -24,6 +24,18 @@ export const sampleImprintAnswers: ImprintAnswers = {
     otherClarification: "",
     text: "",
   },
+  "identity-birth-details": {
+    selected: [],
+    clarification: "",
+    conditionalClarifications: {},
+    otherClarification: "",
+    text: "",
+    textValues: {
+      birthDate: "1987-04-12",
+      birthPlace: "Denver, CO",
+      birthTime: "09:15",
+    },
+  },
   "core-descriptors": {
     selected: ["Creative", "Strategic", "Curious"],
     clarification: "Strongest when translating complex systems into a clear practical path.",
@@ -66,6 +78,14 @@ export const sampleImprintAnswers: ImprintAnswers = {
   "work-alignment": {
     selected: ["Close, but needs refinement"],
     clarification: "",
+    conditionalClarifications: {},
+    otherClarification: "",
+    text: "",
+  },
+  "leadership-collaboration-style": {
+    selected: ["Vision-led", "Collaborative and empowering"],
+    primary: "Vision-led",
+    clarification: "Lead with direction, but keep trusted collaborators close to the shaping process.",
     conditionalClarifications: {},
     otherClarification: "",
     text: "",
@@ -125,6 +145,14 @@ export const sampleImprintAnswers: ImprintAnswers = {
     otherClarification: "",
     text: "",
   },
+  "learning-preference": {
+    selected: ["Examples", "Step-by-step"],
+    primary: "Examples",
+    clarification: "Start with a concrete example, then turn it into repeatable structure.",
+    conditionalClarifications: {},
+    otherClarification: "",
+    text: "",
+  },
   "long-term-direction": {
     selected: ["Lasting legacy and impact", "Thriving business with freedom"],
     primary: "Lasting legacy and impact",
@@ -132,6 +160,13 @@ export const sampleImprintAnswers: ImprintAnswers = {
     conditionalClarifications: {},
     otherClarification: "",
     text: "",
+  },
+  "five-year-picture": {
+    selected: [],
+    clarification: "",
+    conditionalClarifications: {},
+    otherClarification: "",
+    text: "A trusted platform that supports creative work, family life, and durable financial freedom.",
   },
   "setback-response": {
     selected: ["I reflect, adjust, and continue", "I seek support"],
